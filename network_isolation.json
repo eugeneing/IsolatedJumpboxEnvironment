@@ -1,0 +1,380 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storageAccountName": {
+            "type": "string",
+            "defaultValue": "[concat('diag', take(uniqueString(resourceGroup().id), 12))]",
+            "metadata": {
+                "description": "Name of Storage Account."
+            }
+        },
+        "storageAccountType": {
+            "type": "string",
+            "defaultValue": "Standard_LRS",
+            "allowedValues": [
+                "Standard_LRS",
+                "Standard_GRS",
+                "Standard_ZRS",
+                "Premium_LRS"
+            ],
+            "metadata": {
+                "description": "Type of Storage Account."
+            }
+        },
+        "workspaceName": {
+            "type": "string",
+            "defaultValue": "[concat('loga', take(uniqueString(resourceGroup().id), 12))]",
+            "metadata": {
+                "description": "Name of Log Lnalytics workspace."
+            }
+        },
+        "vnetName": {
+            "type": "array",
+            "defaultValue": ["vnet"],
+            "metadata": {
+                "description": "Name of the Virtual Network."
+            }
+        },
+        "networkWatcherName": {
+            "type": "string",
+            "defaultValue": "networkwatcher",
+            "metadata": {
+                "description": "Name of the Network Watcher."
+            }
+        },
+        "subnetType": {
+            "type": "array",
+            "defaultValue": ["app","frontend","backend","devops","management"],
+            "metadata" : {
+                "description": "Type of Subnets."
+            }
+        },
+        "subnetPrefixArray": {
+            "type": "array",
+            "defaultValue": [],
+            "metadata": {
+                "description": "Subnet Prefix list."
+            }
+        },
+        "addressPrefixArray":{
+            "type": "array",
+            "defaultValue": ["10.0.0.0/16"],
+            "metadata": {
+                "description": "Virtual Network Prefix list"
+            }
+        }
+    },
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "vnetName": "[parameters('vnetName')[0]]",
+        "addressPrefix": "[parameters('addressPrefixArray')[0]]",
+        "delimiters": [".","/"],
+        "networkWatcherName": "[parameters('networkWatcherName')]",
+        "copy":[
+            {
+                "name": "subnetNameArray",
+                "count": "[length(parameters('subnetType'))]",
+                "input": "[concat(variables('vnetName'),concat('-',parameters('subnetType')[copyIndex('subnetNameArray')]))]"
+            },
+            {
+                "name": "nsgNameArray",
+                "count": "[length(parameters('subnetType'))]",
+                "input": "[concat(variables('subnetNameArray')[copyIndex('nsgNameArray')],'-nsg')]"
+            },
+            {
+                "name": "addressPrefixArray",
+                "count": "[length(parameters('subnetType'))]",
+                "input": "[if(empty(parameters('subnetPrefixArray')),prefixManip.convertPrefixtoString(prefixManip.editPrefixArray(prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,copyIndex('addressPrefixArray')),4,24)),parameters('subnetPrefixArray')[copyIndex('addressPrefixArray')])]"
+            }
+        ]
+    },
+    "functions": [
+        {
+            "namespace": "prefixManip",
+            "members": {
+                "splitPrefix": {
+                    "parameters": [
+                        {
+                            "name": "prefixInput",
+                            "type": "string"
+                        },
+                        {
+                            "name": "delimiters",
+                            "type": "array"
+                        }
+                    ],
+                    "output": {
+                        "type": "array",
+                        "value": "[split(parameters('prefixInput'),parameters('delimiters'))]"
+                    }
+                },
+                "getCIDR": {
+                    "parameters": [
+                        {
+                            "name": "splitPrefixArray",
+                            "type": "array"
+                        }
+                    ],
+                    "output": {
+                        "type": "int",
+                        "value": "[int(last(parameters('splitPrefixArray')))]"
+                    }
+                },
+                "convertPrefixtoString": {
+                    "parameters": [
+                        {
+                            "name": "splitPrefixArray",
+                            "type": "array"
+                        }
+                    ],
+                    "output": {
+                        "type": "string",
+                        "value": "[string(concat(parameters('splitPrefixArray')[0],'.',parameters('splitPrefixArray')[1],'.',parameters('splitPrefixArray')[2],'.',parameters('splitPrefixArray')[3],'/',parameters('splitPrefixArray')[4]))]"
+                    }
+                },
+                "editPrefixArray":{
+                    "parameters": [
+                        {
+                            "name": "originalPrefixArray",
+                            "type": "array"
+                        },
+                        {
+                            "name": "indexToModify",
+                            "type": "int"
+                        },
+                        {
+                            "name": "valueToInsert",
+                            "type": "int"
+                        }
+                    ],
+                    "output": {
+                        "type": "array",
+                        "value": "[concat(take(parameters('originalPrefixArray'),parameters('indexToModify')),array(string(parameters('valueToInsert'))),skip(parameters('originalPrefixArray'),add(parameters('indexToModify'),1)))]"
+                    }
+                }
+            }
+        }
+    ],
+    "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[parameters('storageAccountName')]",
+            "location": "[variables('location')]",
+            "apiVersion": "2018-07-01",
+            "sku": {
+                "name": "[parameters('storageAccountType')]"
+            },
+            "kind": "StorageV2",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.OperationalInsights/workspaces",
+            "name": "[parameters('workspaceName')]",
+            "apiVersion": "2017-04-26-preview",
+            "location": "[variables('location')]",
+            "properties": {
+                "sku": {
+                    "Name": "PerGB2018"
+                }
+            }
+        },
+        {
+            "apiVersion": "2018-12-01",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[variables('nsgNameArray')[copyIndex('nsgcopy')]]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "DenyAllInboudOverload",
+                        "properties": {
+                            "description": "Overload Access Control List Entry for Implicit Deny within the VNet",
+                            "access": "Deny",
+                            "direction": "Inbound",
+                            "priority": 4096,
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "sourcePortRanges": [],
+                            "sourceAddressPrefix": "*",
+                            "sourceAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [],
+                            "destinationPortRange": "*",
+                            "destinationPortRanges": [],
+                            "destinationAddressPrefix": "*",
+                            "destinationAddressPrefixes": [],
+                            "destinationApplicationSecurityGroups": []
+                        }
+                    },
+                    {
+                        "name": "AllowLoadBalancerInboundOverload",
+                        "properties": {
+                            "description": "Overload Access Control List Entry for LoadBalancer",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "priority": 4095,
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "sourcePortRanges": [],
+                            "sourceAddressPrefix": "AzureLoadBalancer",
+                            "sourceAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [],
+                            "destinationPortRange": "*",
+                            "destinationPortRanges": [],
+                            "destinationAddressPrefix": "*",
+                            "destinationAddressPrefixes": [],
+                            "destinationApplicationSecurityGroups": []
+                        }
+                    },
+                    {
+                        "name": "AllowIntraSubnetInbound",
+                        "properties": {
+                            "description": "Access Control List Entry for Intra-Subnet Communication",
+                            "access": "Allow",
+                            "direction": "Inbound",
+                            "priority": 4094,
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "sourcePortRanges": [],
+                            "sourceAddressPrefix": "[variables('addressPrefixArray')[copyIndex('nsgcopy')]]",
+                            "sourceAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [],
+                            "destinationPortRange": "*",
+                            "destinationPortRanges": [],
+                            "destinationAddressPrefix": "[variables('addressPrefixArray')[copyIndex('nsgcopy')]]",
+                            "destinationAddressPrefixes": [],
+                            "destinationApplicationSecurityGroups": []
+                        }
+                    },
+                    {
+                        "name": "DenyAllOutboudOverload",
+                        "properties": {
+                            "description": "Overload Access Control List Entry for Implicit Deny within the VNet",
+                            "access": "Deny",
+                            "direction": "Outbound",
+                            "priority": 4096,
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "sourcePortRanges": [],
+                            "sourceAddressPrefix": "*",
+                            "sourceAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [],
+                            "destinationPortRange": "*",
+                            "destinationPortRanges": [],
+                            "destinationAddressPrefix": "*",
+                            "destinationAddressPrefixes": [],
+                            "destinationApplicationSecurityGroups": []
+                        }
+                    },
+                    {
+                        "name": "AllowIntraSubnetOutbound",
+                        "properties": {
+                            "description": "Access Control List Entry for Intra-Subnet Communication",
+                            "access": "Allow",
+                            "direction": "Outbound",
+                            "priority": 4094,
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "sourcePortRanges": [],
+                            "sourceAddressPrefix": "[variables('addressPrefixArray')[copyIndex('nsgcopy')]]",
+                            "sourceAddressPrefixes": [],
+                            "sourceApplicationSecurityGroups": [],
+                            "destinationPortRange": "*",
+                            "destinationPortRanges": [],
+                            "destinationAddressPrefix": "[variables('addressPrefixArray')[copyIndex('nsgcopy')]]",
+                            "destinationAddressPrefixes": [],
+                            "destinationApplicationSecurityGroups": []
+                        }
+                    }
+                ]
+            },
+            "resources": [
+                {
+                    "type": "providers/diagnosticSettings",
+                    "name": "[concat('Microsoft.Insights/', concat(variables('nsgNameArray')[copyIndex('nsgcopy')], '-diag'))]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                        "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+                        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgNameArray')[copyIndex('nsgcopy')])]"
+                    ],
+                    "apiVersion": "2017-05-01-preview",
+                    "properties": {
+                        "name": "[concat(variables('nsgNameArray')[copyIndex('nsgcopy')], '-diag')]",
+                        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+                        "logs": [
+                            {
+                                "category": "NetworkSecurityGroupEvent",
+                                "enabled": true,
+                                "retentionPolicy": {
+                                    "days": 30,
+                                    "enabled": true
+                                }
+                            },
+                            {
+                                "category": "NetworkSecurityGroupRuleCounter",
+                                "enabled": true,
+                                "retentionPolicy": {
+                                    "days": 30,
+                                    "enabled": true
+                                }
+                            }
+                        ]
+                    }
+                }
+            ],
+            "copy": {
+                "name": "nsgcopy",
+                "count": "[length(variables('nsgNameArray'))]"
+            }
+        },
+        {
+            "apiVersion": "2018-12-01",
+            "type": "Microsoft.Network/virtualNetworks",
+            "name": "[variables('vnetName')]",
+            "location": "[variables('location')]",
+            "dependsOn": ["nsgcopy"],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": "[parameters('addressPrefixArray')]"
+                },
+                "copy" : [
+                    {
+                        "name": "subnets",
+                        "count": "[length(variables('subnetNameArray'))]",
+                        "input": {
+                            "name": "[variables('subnetNameArray')[copyIndex('subnets')]]",
+                            "properties": {
+                                "addressPrefix": "[variables('addressPrefixArray')[copyIndex('subnets')]]",
+                                "networkSecurityGroup": {
+                                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgNameArray')[copyIndex('subnets')])]"
+                                }
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "outputs": {
+        "prefixOutput": {
+            "type": "int",
+            "value": "[prefixManip.getCIDR(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')))]"
+        },
+        "newPrefixOutput":{
+            "type": "array",
+            "value": "[prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,11)]"
+        },
+        "strPrefixOutput": {
+            "type": "string",
+            "value": "[prefixManip.convertPrefixtoString(prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,11))]"
+        },
+        "multiplemanip":{
+            "type": "array",
+            "value": "[prefixManip.editPrefixArray(prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,11),3,24)]"
+        }
+    }
+}
