@@ -4,25 +4,14 @@
     "parameters": {
         "vmSize": {
             "type": "string",
-            "defaultValue": "Standard_D4s_v3",
-            "allowedValues": [
-                "Standard_E64is_v3",
-                "Standard_E64i_v3",
-                "Standard_M128ms",
-                "Standard_GS5",
-                "Standard_G5",
-                "Standard_DS15_v2",
-                "Standard_D15_v2",
-                "Standard_F72s_v2",
-                "Standard_L32s"
-            ],
+            "defaultValue": "Standard_E64i_v3",
             "metadata": {
                 "description": "VM size of the virtual machine."
             }
         },
         "vmName": {
             "type": "string",
-            "defaultValue": "devops",
+            "defaultValue": "jumpbox",
             "minLength": 3,
             "maxLength": 15,
             "metadata": {
@@ -31,6 +20,7 @@
         },
         "adminUsername": {
             "type": "string",
+            "defaultValue": "jumpboxadmin",
             "minLength": 1,
             "metadata": {
                 "description": "Name of the local administrator account, this cannot be Admin, Administrator or root."
@@ -48,10 +38,212 @@
             "metadata": {
                 "description": "Name of the Storage Account to be used for archiving logs and metrics."
             }
+        },
+        "subnetName": {
+            "type": "string",
+            "defaultValue": "management",
+            "metadata": {
+                "description": "Name of subnet to place the VM into."
+            }
+        },
+        "vnetName":{
+            "type": "string",
+            "defaultValue": "vnet",
+            "metadata": {
+                "description": "Name of the vnet to place the VM into."
+            }
+        },
+        "isJumpbox": {
+            "type": "bool",
+            "metadata": {
+                "description": "Boolean dictating if the VM is a jumpbox providing its private IP to be allowed to all NSGs"
+            }
+        },
+        "platform":{
+            "type": "string",
+            "allowedValues": [
+                "WinSrv",
+                "Linux"
+            ],
+            "metadata": {
+                "description": "Select the OS type to deploy"
+            }
+        },
+        "pwdOrssh": {
+            "type": "securestring",
+            "metadata": {
+                "description": "If Windows, specify the password for the OS username. If Linux, provide the SSH."
+            }
         }
     },
-    "variables": {  },
-    "functions": [  ],
-    "resources": [  ],
-    "outputs": {  }
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "nsgName": "[concat(parameters('vmName'),'-nsg')]",
+        "publicIpName": "[concat(parameters('vmName'), '-pip')]",
+        "nicName": "[concat(parameters('vmName'), '-nic')]",
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('vnetName'), concat(parameters('vnetName'),'-',parameters('subnetName')))]"
+    },
+    "functions": [],
+    "resources": [
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "name": "[variables('nsgName')]",
+            "apiVersion": "2018-01-01",
+            "location": "[variables('location')]"
+        },
+        {
+            "name": "[variables('publicIpName')]",
+            "type": "Microsoft.Network/publicIPAddresses",
+            "location": "[variables('location')]",
+            "apiVersion": "2017-11-01",
+            "properties": {
+                "publicIPAllocationMethod": "Dynamic"
+            }
+        },
+        {
+            "name": "[variables('nicName')]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "location": "[variables('location')]",
+            "apiVersion": "2017-11-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "ipconfig1",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+                            }
+                        }
+                    }
+                ],
+                "networkSecurityGroup": {
+                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                }
+            }
+        },
+        {
+            "name": "[parameters('vmName')]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "location": "[variables('location')]",
+            "apiVersion": "2017-12-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicName')))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('vmSize')]"
+                },
+                "osProfile": {
+                    "computerName": "[parameters('vmName')]",
+                    "adminUsername": "[parameters('AdminUsername')]",
+                    "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "MicrosoftWindowsServer",
+                        "offer": "WindowsServer",
+                        "sku": "2016-Datacenter",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "name": "[concat(parameters('vmName'),'-osdisk')]",
+                        "osType": "Windows",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Standard_LRS"
+                        },
+                        "diskSizeGB": 127
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicName')))]"
+                        }
+                    ]
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true,
+                        "storageUri": "[concat('https', '://', parameters('storageAccountName'), '.blob.core.usgovcloudapi.net', '/')]"
+                    }
+                }
+            }
+        },
+        {
+            "apiVersion": "2018-05-01",
+            "type": "Microsoft.Resources/deployments",
+            "name": "updateNSGs",
+            "condition": "[parameters('isJumpbox')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "parameters":{},
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(variables('nsgName'),'/','AllowRDP')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing RDP",
+                                "access": "Allow",
+                                "direction": "Inbound",
+                                "priority": 100,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "*",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRanges": ["3389"],
+                                "destinationAddressPrefix": "*",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []                                                             
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(parameters('vnetName'),'-',parameters('subnetName'),'-nsg','/','AllowRDP')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing RDP",
+                                "access": "Allow",
+                                "direction": "Inbound",
+                                "priority": 100,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "*",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRanges": ["3389"],
+                                "destinationAddressPrefix": "*",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []                                                             
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "outputs": {}
 }
