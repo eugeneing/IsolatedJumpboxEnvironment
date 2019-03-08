@@ -30,8 +30,8 @@
             }
         },
         "vnetName": {
-            "type": "array",
-            "defaultValue": ["vnet"],
+            "type": "string",
+            "defaultValue": "vnet",
             "metadata": {
                 "description": "Name of the Virtual Network."
             }
@@ -67,7 +67,7 @@
     },
     "variables": {
         "location": "[resourceGroup().location]",
-        "vnetName": "[parameters('vnetName')[0]]",
+        "vnetName": "[parameters('vnetName')]",
         "addressPrefix": "[parameters('addressPrefixArray')[0]]",
         "delimiters": [".","/"],
         "networkWatcherName": "[parameters('networkWatcherName')]",
@@ -375,6 +375,10 @@
         "multiplemanip":{
             "type": "array",
             "value": "[prefixManip.editPrefixArray(prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,11),3,24)]"
+        },
+        "subnetNameArray":{
+            "type": "array",
+            "value": "[variables('subnetNameArray')]"
         }
     }
 }
