@@ -62,6 +62,13 @@
             "metadata": {
                 "description": "If Windows, specify the password for the OS username. If Linux, provide the SSH."
             }
+        },
+        "isJumpbox": {
+            "type": "bool",
+            "defaultValue": true,
+            "metadata": {
+                "description": "Is this VM a Jumpbox. If so this will ensure a conversion of Private IP to Static Allocation"
+            }
         }
     },
     "variables": {
@@ -173,12 +180,55 @@
                     }
                 }
             }
+        },
+        {
+            "apiVersion": "2018-05-01",
+            "type": "Microsoft.Resources/deployments",
+            "name": "nicPrivateIPConversion",
+            "condition": "[parameters('isJumpbox')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "parameters":{},
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "apiVersion": "2018-11-01",
+                            "type": "Microsoft.Network/networkInterfaces",
+                            "location": "[variables('location')]",
+                            "name": "[variables('nicName')]",
+                            "dependsOn": [],
+                            "properties": {
+                                "ipConfigurations": [
+                                    {
+                                        "name": "ipconfig1",
+                                        "properties": {
+                                            "privateIPAllocationMethod": "Static",
+                                            "privateIPAddress": "[reference(concat('Microsoft.Network/networkInterfaces/', variables('nicName'))).ipConfigurations[0].properties.privateIPAddress]",
+                                            "subnet":{
+                                                "id": "[variables('subnetRef')]"
+                                            },
+                                            "publicIPAddress": {
+                                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+                                            }
+                                        }
+                                    }
+                                ],
+                                "networkSecurityGroup": {
+                                    "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
         }
     ],
-    "outputs": {
-        "resourceGroup":{
-            "type": "object",
-            "value": "[reference(concat(variables('vmName'), '-nic'))]"
-        }
-    }
+    "outputs": {}
 }

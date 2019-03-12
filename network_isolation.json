@@ -358,26 +358,5 @@
             }
         }
     ],
-    "outputs": {
-        "prefixOutput": {
-            "type": "int",
-            "value": "[prefixManip.getCIDR(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')))]"
-        },
-        "newPrefixOutput":{
-            "type": "array",
-            "value": "[prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,11)]"
-        },
-        "strPrefixOutput": {
-            "type": "string",
-            "value": "[prefixManip.convertPrefixtoString(prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,11))]"
-        },
-        "multiplemanip":{
-            "type": "array",
-            "value": "[prefixManip.editPrefixArray(prefixManip.editPrefixArray(prefixManip.splitPrefix(variables('addressPrefix'),variables('delimiters')),2,11),3,24)]"
-        },
-        "subnetNameArray":{
-            "type": "array",
-            "value": "[variables('subnetNameArray')]"
-        }
-    }
+    "outputs": {}
 }
