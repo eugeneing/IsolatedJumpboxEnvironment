@@ -26,13 +26,6 @@
                 "description": "Name of the local administrator account, this cannot be Admin, Administrator or root."
             }
         },
-        "adminPassword": {
-            "type": "securestring",
-            "minLength": 15,
-            "metadata": {
-                "description": "Local administrator password, complex password is required, do not use any variation of the password word because it will be rejected."
-            }
-        },
         "storageAccountName": {
             "type": "string",
             "metadata": {
@@ -53,12 +46,6 @@
                 "description": "Name of the vnet to place the VM into."
             }
         },
-        "isJumpbox": {
-            "type": "bool",
-            "metadata": {
-                "description": "Boolean dictating if the VM is a jumpbox providing its private IP to be allowed to all NSGs"
-            }
-        },
         "platform":{
             "type": "string",
             "allowedValues": [
@@ -71,6 +58,7 @@
         },
         "pwdOrssh": {
             "type": "securestring",
+            "minLength": 15,
             "metadata": {
                 "description": "If Windows, specify the password for the OS username. If Linux, provide the SSH."
             }
@@ -78,10 +66,17 @@
     },
     "variables": {
         "location": "[resourceGroup().location]",
-        "nsgName": "[concat(parameters('vmName'),'-nsg')]",
-        "publicIpName": "[concat(parameters('vmName'), '-pip')]",
-        "nicName": "[concat(parameters('vmName'), '-nic')]",
-        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('vnetName'), concat(parameters('vnetName'),'-',parameters('subnetName')))]"
+        "vmName": "[concat(parameters('vmName'),'-',parameters('platform'))]",
+        "nsgName": "[concat(variables('vmName'),'-nsg')]",
+        "publicIpName": "[concat(variables('vmName'), '-pip')]",
+        "nicName": "[concat(variables('vmName'), '-nic')]",
+        "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets/', parameters('vnetName'), concat(parameters('vnetName'),'-',parameters('subnetName')))]",
+        "windowsPublisher": "MicrosoftWindowsServer",
+        "linuxPublisher": "Canonical",
+        "windowsOffer": "WindowsServer",
+        "linuxOffer": "UbuntuServer",
+        "windowsSku": "2016-Datacenter",
+        "linuxSku": "18.04-LTS"
     },
     "functions": [],
     "resources": [
@@ -130,10 +125,10 @@
             }
         },
         {
-            "name": "[parameters('vmName')]",
+            "name": "[variables('vmName')]",
             "type": "Microsoft.Compute/virtualMachines",
             "location": "[variables('location')]",
-            "apiVersion": "2017-12-01",
+            "apiVersion": "2018-10-01",
             "dependsOn": [
                 "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicName')))]"
             ],
@@ -142,20 +137,20 @@
                     "vmSize": "[parameters('vmSize')]"
                 },
                 "osProfile": {
-                    "computerName": "[parameters('vmName')]",
+                    "computerName": "[variables('vmName')]",
                     "adminUsername": "[parameters('AdminUsername')]",
-                    "adminPassword": "[parameters('adminPassword')]"
+                    "adminPassword": "[parameters('pwdOrssh')]"
                 },
                 "storageProfile": {
                     "imageReference": {
-                        "publisher": "MicrosoftWindowsServer",
-                        "offer": "WindowsServer",
-                        "sku": "2016-Datacenter",
+                        "publisher": "[if(equals(parameters('platform'), 'WinSrv'), variables('windowsPublisher'), variables('linuxPublisher'))]",
+                        "offer": "[if(equals(parameters('platform'), 'WinSrv'), variables('windowsOffer'), variables('linuxOffer'))]",
+                        "sku": "[if(equals(parameters('platform'), 'WinSrv'), variables('windowsSku'), variables('linuxSku'))]",
                         "version": "latest"
                     },
                     "osDisk": {
-                        "name": "[concat(parameters('vmName'),'-osdisk')]",
-                        "osType": "Windows",
+                        "name": "[concat(variables('vmName'),'-osdisk')]",
+                        "osType": "[if(equals(parameters('platform'), 'WinSrv'),'Windows','Linux')]",
                         "createOption": "FromImage",
                         "caching": "ReadWrite",
                         "managedDisk": {
@@ -178,72 +173,12 @@
                     }
                 }
             }
-        },
-        {
-            "apiVersion": "2018-05-01",
-            "type": "Microsoft.Resources/deployments",
-            "name": "updateNSGs",
-            "condition": "[parameters('isJumpbox')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]"
-            ],
-            "properties": {
-                "mode": "Incremental",
-                "parameters":{},
-                "template": {
-                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-                    "contentVersion": "1.0.0.0",
-                    "parameters": {},
-                    "variables": {},
-                    "resources": [
-                        {
-                            "apiVersion": "2018-11-01",
-                            "name": "[concat(variables('nsgName'),'/','AllowRDP')]",
-                            "location": "[resourceGroup().location]",
-                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
-                            "properties": {
-                                "description": "Access Control List Entry for Allowing RDP",
-                                "access": "Allow",
-                                "direction": "Inbound",
-                                "priority": 100,
-                                "protocol": "*",
-                                "sourcePortRange": "*",
-                                "sourcePortRanges": [],
-                                "sourceAddressPrefix": "*",
-                                "sourceAddressPrefixes": [],
-                                "sourceApplicationSecurityGroups": [],
-                                "destinationPortRanges": ["3389"],
-                                "destinationAddressPrefix": "*",
-                                "destinationAddressPrefixes": [],
-                                "destinationApplicationSecurityGroups": []                                                             
-                            }
-                        },
-                        {
-                            "apiVersion": "2018-11-01",
-                            "name": "[concat(parameters('vnetName'),'-',parameters('subnetName'),'-nsg','/','AllowRDP')]",
-                            "location": "[resourceGroup().location]",
-                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
-                            "properties": {
-                                "description": "Access Control List Entry for Allowing RDP",
-                                "access": "Allow",
-                                "direction": "Inbound",
-                                "priority": 100,
-                                "protocol": "*",
-                                "sourcePortRange": "*",
-                                "sourcePortRanges": [],
-                                "sourceAddressPrefix": "*",
-                                "sourceAddressPrefixes": [],
-                                "sourceApplicationSecurityGroups": [],
-                                "destinationPortRanges": ["3389"],
-                                "destinationAddressPrefix": "*",
-                                "destinationAddressPrefixes": [],
-                                "destinationApplicationSecurityGroups": []                                                             
-                            }
-                        }
-                    ]
-                }
-            }
         }
     ],
-    "outputs": {}
+    "outputs": {
+        "resourceGroup":{
+            "type": "object",
+            "value": "[reference(concat(variables('vmName'), '-nic'))]"
+        }
+    }
 }
