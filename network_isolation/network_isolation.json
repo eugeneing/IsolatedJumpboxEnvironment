@@ -358,5 +358,14 @@
             }
         }
     ],
-    "outputs": {}
+    "outputs": {
+        "storageAccountName": {
+            "type": "string",
+            "value": "[parameters('storageAccountName')]"
+        },
+        "workspaceName": {
+            "type": "string",
+            "value": "[parameters('workspaceName')]"
+        }
+    }
 }

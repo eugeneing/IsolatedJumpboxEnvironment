@@ -83,7 +83,7 @@
         "windowsOffer": "WindowsServer",
         "linuxOffer": "UbuntuServer",
         "windowsSku": "2016-Datacenter",
-        "linuxSku": "18.04-LTS"
+        "linuxSku": "16.04-LTS"
     },
     "functions": [],
     "resources": [

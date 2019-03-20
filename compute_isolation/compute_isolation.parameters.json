@@ -1,0 +1,17 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "adminUsername": {
+            "value": "jumpboxadmin"
+        },
+        "pwdOrssh": {
+            "reference": {
+                "keyVault": {
+                    "id": "/subscriptions/subscriptionId/resourceGroups/resourceGroupName/providers/Microsoft.KeyVault/vaults/keyVaultName"
+                },
+                "secretName": "jumpboxAdminPass"
+            }
+        }
+    }
+}

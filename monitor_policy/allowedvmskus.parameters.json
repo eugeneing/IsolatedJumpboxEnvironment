@@ -1,0 +1,14 @@
+{
+    "listOfAllowedSKUs": {
+        "type": "array",
+        "defaultValue": [
+            "Standard_DS15_v2",
+            "Standard_D15_v2",
+            "Standard_E64is_v3",
+            "Standard_E64i_v3",
+            "Standard_F72s_v2",
+            "Standard_M128ms",
+            "Standard_NV24"
+        ]
+    }
+}

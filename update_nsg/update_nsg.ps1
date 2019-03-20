@@ -1,0 +1,4 @@
+az network nsg rule create -g testARM --nsg-name jumpbox-Linux-nsg -n AllowRemoteAdministrationIn --priority 100 --destination-port-ranges 22 3389 --access Allow  --direction Inbound
+az network nsg rule create -g testARM --nsg-name vnet-management-nsg -n AllowRemoteAdministrationIn --priority 100 --destination-port-ranges 22 3389  --access Allow  --direction Inbound
+az network nsg rule create -g testARM --nsg-name jumpbox-Linux-nsg -n AllowRemoteAdministrationOut --priority 100 --source-port-ranges 22 3389 --destination-port-ranges "*" --access Allow  --direction Outbound
+az network nsg rule create -g testARM --nsg-name vnet-management-nsg -n AllowRemoteAdministrationOut --priority 100 --source-port-ranges 22 3389 --destination-port-ranges "*" --access Allow  --direction Outbound

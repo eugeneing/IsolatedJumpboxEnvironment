@@ -1,0 +1,32 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {},
+    "variables": {},
+    "functions": [],
+    "resources": [
+        {
+            "apiVersion": "2018-11-01",
+            "name": "vnet-frontend-nsg/TestMultipleServiceTags",
+            "location": "[resourceGroup().location]",
+            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+            "properties": {
+                "description": "Access Control List Entry for Allowing RDP",
+                "access": "Allow",
+                "direction": "Inbound",
+                "priority": 100,
+                "protocol": "*",
+                "sourcePortRange": "*",
+                "sourcePortRanges": [],
+                "sourceAddressPrefix": "AzureKeyVault",
+                "sourceAddressPrefixes": [],
+                "destinationPortRange": "*",
+                "destinationPortRanges": [],
+                "destinationAddressPrefix": "*",
+                "destinationAddressPrefixes": [],
+                "destinationApplicationSecurityGroups": []
+            }
+        }
+    ],
+    "outputs": {}
+}
