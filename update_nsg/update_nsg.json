@@ -20,6 +20,7 @@
                 "sourcePortRanges": [],
                 "sourceAddressPrefix": "AzureKeyVault",
                 "sourceAddressPrefixes": [],
+                "sourceApplicationSecurityGroups": [],
                 "destinationPortRange": "*",
                 "destinationPortRanges": [],
                 "destinationAddressPrefix": "*",
