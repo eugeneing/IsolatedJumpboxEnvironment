@@ -48,6 +48,7 @@
         },
         "platform":{
             "type": "string",
+            "defaultValue": "WinSrv",
             "allowedValues": [
                 "WinSrv",
                 "Linux"
@@ -228,7 +229,225 @@
                     ]
                 }
             }
+        },
+        {
+            "apiVersion": "2018-05-01",
+            "type": "Microsoft.Resources/deployments",
+            "name": "updateNSGs",
+            "condition": "[parameters('isJumpbox')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups',variables('nsgName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "parameters":{},
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(variables('nsgName'),'/','AllowAzureKeyVaultIn')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureKeyVault",
+                                "access": "Allow",
+                                "direction": "Inbound",
+                                "priority": 4092,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "AzureKeyVault",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "*",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(variables('nsgName'),'/','AllowAzureKeyVaultOut')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureKeyVault",
+                                "access": "Allow",
+                                "direction": "Outbound",
+                                "priority": 4092,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "*",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "AzureKeyVault",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(parameters('vnetName'),'-',parameters('subnetName'),'-nsg','/','AllowAzureKeyVaultIn')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureKeyVault",
+                                "access": "Allow",
+                                "direction": "Inbound",
+                                "priority": 4092,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "AzureKeyVault",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "*",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(parameters('vnetName'),'-',parameters('subnetName'),'-nsg','/','AllowAzureKeyVaultOut')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureKeyVault",
+                                "access": "Allow",
+                                "direction": "Outbound",
+                                "priority": 4092,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "*",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "AzureKeyVault",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(variables('nsgName'),'/','AllowAzureActiveDirectoryIn')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureActiveDirectory",
+                                "access": "Allow",
+                                "direction": "Inbound",
+                                "priority": 4093,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "AzureActiveDirectory",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "*",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(variables('nsgName'),'/','AllowAzureActiveDirectoryOut')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureActiveDirectory",
+                                "access": "Allow",
+                                "direction": "Outbound",
+                                "priority": 4093,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "*",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "AzureActiveDirectory",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(parameters('vnetName'),'-',parameters('subnetName'),'-nsg','/','AllowAzureActiveDirectoryIn')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureActiveDirectory",
+                                "access": "Allow",
+                                "direction": "Inbound",
+                                "priority": 4093,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "AzureActiveDirectory",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "*",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        },
+                        {
+                            "apiVersion": "2018-11-01",
+                            "name": "[concat(parameters('vnetName'),'-',parameters('subnetName'),'-nsg','/','AllowAzureActiveDirectoryOut')]",
+                            "location": "[resourceGroup().location]",
+                            "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+                            "properties": {
+                                "description": "Access Control List Entry for Allowing AzureActiveDirectory",
+                                "access": "Allow",
+                                "direction": "Outbound",
+                                "priority": 4093,
+                                "protocol": "*",
+                                "sourcePortRange": "*",
+                                "sourcePortRanges": [],
+                                "sourceAddressPrefix": "*",
+                                "sourceAddressPrefixes": [],
+                                "sourceApplicationSecurityGroups": [],
+                                "destinationPortRange": "*",
+                                "destinationPortRanges": [],
+                                "destinationAddressPrefix": "AzureActiveDirectory",
+                                "destinationAddressPrefixes": [],
+                                "destinationApplicationSecurityGroups": []
+                            }
+                        }
+                    ]
+                }
+            }
         }
     ],
-    "outputs": {}
+    "outputs": {
+        "osDiskName":{
+            "type": "string",
+            "value": "[concat(variables('vmName'),'-osdisk')]"
+        },
+        "nsgToUpdateName":{
+            "type": "string",
+            "value": "[concat(parameters('vnetName'),'-',parameters('subnetName'),'-nsg')]"
+        },
+        "vmName":{
+            "type": "string",
+            "value": "[variables('vmName')]"
+        }
+    }
 }

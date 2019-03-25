@@ -43,7 +43,8 @@
                 "list",
                 "delete",
                 "get",
-                "purge"
+                "purge",
+                "set"
             ],
             "metadata": {
                 "description": "Permissions to secrets in the Key Vault. Valid values are: all, get, set, list, and delete."
