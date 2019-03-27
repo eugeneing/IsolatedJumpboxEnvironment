@@ -8,10 +8,6 @@
             {
               "secretName": "jumpboxAdminPass",
               "secretValue": "TestingSecrets1!"
-            },
-            {
-              "secretName": "exampleSecret2",
-              "secretValue": "secretValue2"
             }
           ]
         }
