@@ -9,9 +9,9 @@ if($AzureOutput){
 }
 
 # Create Objects for User Prompts
-$usernameObj = @{"value"="b-eung@fieldinternaltrials.onmicrosoft.com";"prompt"="Enter User Name"}
-$resourceGroupObj = @{"value"="test";"prompt"="Enter Resource Group Name"}
-$locationObj = @{"value"="usgovvirginia";"prompt"="Enter Azure Location"}
+$usernameObj = @{"value"="";"prompt"="Enter User Name"}
+$resourceGroupObj = @{"value"="";"prompt"="Enter Resource Group Name"}
+$locationObj = @{"value"="";"prompt"="Enter Azure Location"}
 $subObj = @{"value"="";"prompt"="Enter Subscription name you would like to work in. Hit enter to work in your default subscription"}
 
 # Add all object Prompts to Prompt Hash Table
