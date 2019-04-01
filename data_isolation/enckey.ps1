@@ -122,7 +122,7 @@ if (!$key){
 }
 
 # Get storage principal for use in data_isolation
-$strgPrin = az storage account list -g $ResourceGroup --query "[].identity.principalId" -o tsv | select -first 1
+$strgPrin = az storage account list -g $ResourceGroup --query "[].identity.principalId" -o tsv | Select-Object -first 1
 
 # Splitting key for use with storage account update
 $keysplit = $key.Split('/')
