@@ -107,7 +107,7 @@ if (!$key){
                     
                     while(!$PEMPass){ # Get User to input password for the password protected PEM file
                         $PEMPass = Read-Host -Prompt "Please enter password for the PEM file $filename" -AsSecureString
-                        if(!$PEMPass){
+                        if(!($PEMPass.Length -gt 0)){
                             Write-Host "Passowrd cannot be an empty string"
                         }
                     }
