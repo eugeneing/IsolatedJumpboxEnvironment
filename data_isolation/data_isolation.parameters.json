@@ -7,7 +7,7 @@
           "secrets": [
             {
               "secretName": "jumpboxAdminPass",
-              "secretValue": "Willreplace"
+              "secretValue": "Willreplaceifnotcustomsecret"
             }
           ]
         }
