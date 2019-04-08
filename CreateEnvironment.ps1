@@ -1,3 +1,100 @@
+<#
+
+.SYNOPSIS
+
+This is a Powershell script that allows the uesr to create a network, data, and compute isolated environment
+with tailored ARM templates and AZ CLI calls. Due to limitations of Powershell parameters sets could not be 
+created to limit possible usage syntax. The below description will attempt to outline most flags and valid
+usage.
+
+.DESCRIPTION
+
+This is a Powershell script that allows the uesr to create a network, data, and compute isolated environment
+with tailored ARM templates and AZ CLI calls. Due to limitations of Powershell parameters sets could not be 
+created to limit possible usage syntax. The below description will attempt to outline most flags and valid
+usage.
+
+Using -AzureOutput $false will suppress all AZ CLI output. Using -AzureOutput $true will allow all of the
+AZ CLI output to be dsiplayed other than the outputs of the deployment calls which variables consume and
+utilize for later within the script. The default is that the output is suppressed.
+
+Using -NoPolicy swicth the script will not deploy policy assignments and definitions.
+
+Effectively all subnets in a virtual network are isolated to only allow communication within each individual
+subnet. This is defined by the NSG rules.
+
+Data Isolation is achieved with Secrets and Encryption Keys placed in an Azure Keyvault. Can provide your own
+key with -BYOKFile, -PEMFile, or -ProtectedPEMFile flags along with the path to the files. -AzureCreatedKey
+will have Azure create the key. Only one of "-BYOKFile, -PEMFile, -ProtectedPEMFile, and -AzureCreatedKey"
+may be used at a time. If more than one of those is used at time the script will fail midway through and 
+exit. -CustomSecret will prompt the user to name their secret to be used in the Keyvault. -CustomKey will 
+prompt the user to name their key to be used in the Keyvault. -CustomSecretName will use the name provided 
+as the argument as the name of the secret to be placed in the Keyvault. -CustomKeyName will use the name 
+provided as the argument as teh name of the key to be placed in the Keyvault. -CustomSecretName and 
+-CustomSecret cannot be used simultaneously and will generate an error. Likewise, -CustomKeyName and 
+-CustomKey cannot be used simultaneously and will generate an error. The default Key name is StrgEncKey1 and 
+the default secret name is jumpboxAdminPass.
+
+Compute Isolation is achieved by the creation of a jumpbox which utilizes a full physical host and has Azure
+Disk Encryption enabled. Use this jumpbox to administer the rest of the environement. If you do not wish to 
+use our created jumpbox then using the -NoJumpbox switch will not deploy the jumpbox. Default settings create a 
+Windows Server 2016 Datacenter. If the -Platform flag is used type WinSrv or Linux. If Linux the jumpbox
+created will be Canonical's Ubuntu 16.04 LTS to provide Azure Disk Encryption. Currently 18.04 LTS does not
+support Azure Disk Encryption yet. To change the image types please modify the compute_isolation.json file.
+Look in the variables section and change the Publisher, Offer, and sku values. 
+See https://docs.microsoft.com/en-us/cli/azure/vm/image?view=azure-cli-latest on running the query to
+find available publishers, offers, and skus in your location.
+
+NOTE: The individual ARM templates and Powershell scripts can be run independently of this script. Users
+will just need to provide the required parameters to execute them.
+
+.PARAMETER AzureOutput
+This is a boolean for whether the results of the AZ CLI calls are displayed. The default is for the
+output to be suppressed.
+
+.PARAMETER Platform
+This takes in a string but will only execute correctly on the values of WinSrv and Linux
+
+.PARAMETER CustomSecret
+This is a switch which will cause the user to be prompted for the name of the Secret to be placed in
+Keyvault.
+
+.PARAMETER CustomKey
+This is a switch which will cause the user to be prompted for the name of the Key to be placed in
+Keyvault.
+
+.PARAMETER CustomSecretName
+This takes in a string for the name of the Secret to placed in Keyvault
+
+.PARAMETER CustomKeyName
+This takes in a string for the name of the Key to placed in Keyvault
+
+.PARAMETER CustomSecretName
+This is a switch which will cause the script to prompt for the name of the Secret to placed in Keyvault
+
+.PARAMETER CustomKeyName
+This is a switch which will cause the script to prompt for the name of the Key to placed in Keyvault
+
+.PARAMETER AzureCreatedKey
+This is a switch which will cause the script to allow Azure to create the Key for the Keyvault
+
+.PARAMETER BYOKFile
+This takes a string which will point to a file that will be used for the Key in the Keyvault
+
+.PARAMETER PEMFile
+This takes a string which will point to a file that will be used for the Key in the Keyvault
+
+.PARAMETER ProtectedPEMFile
+This takes a string which will point to a file that will be used for the Key in the Keyvault
+
+.PARAMETER NoPolicy
+This is a switch which will ensure policies are not assigned nor defined.
+
+.PARAMETER NoJumpbox
+This is a switch which will not deploy the jumpbox.
+
+#>
+
 [CmdletBinding(DefaultParameterSetName='none')]
 param(
     [bool]$AzureOutput = $false,
@@ -58,7 +155,9 @@ param(
     [Parameter(ParameterSetName='KeyPromptSecretName',Mandatory=$false)]
     [switch]$AzureCreatedKey,
     [switch]$NoJumpbox,
-    [switch]$NoPolicy
+    [switch]$NoPolicy,
+    [ValidateSet("WinSrv","Linux")]
+    [string]$Platform
 )
 
 $jbSecretName = ""
