@@ -1,3 +1,52 @@
+<#
+
+.SYNOPSIS
+
+This is a Powershell script that places an encryption key into Keyvault. The user can have Azure create the 
+key or provide their own key file. Then it modifies the Keyvault permissions to allow the Storage Account
+provided.
+
+.DESCRIPTION
+
+This is a Powershell script that places an encryption key into Keyvault. The user can have Azure create the 
+key or provide their own key file.
+
+There are three required parameters of ResourceGroup, StorageAccountName, and KeyvaultName. These are named 
+parameters. ResourceGroup should be the resource group to apply this script to. StorageAccount is the 
+storage account which keyvault should allow. KeyvaultName should be the name of the Keyvault where the user
+would like to place or use the encryption key.
+
+.PARAMETER AzureOutput
+This is a boolean for whether the results of the AZ CLI calls are displayed. The default is for the
+output to be suppressed.
+
+.PARAMETER KeyvaultName
+This is a string of the name of the Keyvault in which to check for or place the Encryption key
+
+.PARAMETER StorageAccountName
+This is a string of the name of the storage account for which needs permission to the Keyvault
+
+.PARAMETER StorageKey
+This is a string of the storage encryption key to be placed or checked for.
+
+.PARAMETER ResourceGroup
+This is a string of the name of the resource group which the script applies to.
+
+.PARAMETER AzureCreatedKey
+This is a switch which will cause the script to allow Azure to create the Key for the Keyvault
+
+.PARAMETER BYOKFile
+This takes a string which will point to a file that will be used for the Key in the Keyvault
+
+.PARAMETER PEMFile
+This takes a string which will point to a file that will be used for the Key in the Keyvault
+
+.PARAMETER ProtectedPEMFile
+This takes a string which will point to a file that will be used for the Key in the Keyvault
+
+
+#>
+
 [CmdletBinding(DefaultParameterSetName='none')]
 param(
     [Parameter(Mandatory=$true)]

@@ -289,7 +289,7 @@ if ($tempUpdate.parameters.secretsObject.value.secrets.ForEach({$_.secretName.co
 }
 
 # Filter out all other secret objects that aren't $jbSecretName
-$tempUpdate.parameters.secretsObject.value.secrets = [array]($tempUpdate.parameters.secretsObject.value.secrets | where {$_.secretName -eq $jbSecretName})
+$tempUpdate.parameters.secretsObject.value.secrets = [array]($tempUpdate.parameters.secretsObject.value.secrets | Where-Object {$_.secretName -eq $jbSecretName})
 
 # Convert the parameters to use on az cli
 $new_params = $tempUpdate.parameters | ConvertTo-Json -Depth 20 -Compress | ForEach-Object {$_ -replace '"', "'"}
