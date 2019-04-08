@@ -18,12 +18,44 @@ param(
     [Parameter(ParameterSetName='SecretPromptKeyName',Mandatory=$true)]
     [string]$CustomKeyName,
     [Parameter(ParameterSetName='BYOK')]
+    [Parameter(ParameterSetName='SecretPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomNamed',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretPromptKeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPromptSecretName',Mandatory=$false)]
     [string]$BYOKFile,
     [Parameter(ParameterSetName='PEM')]
+    [Parameter(ParameterSetName='SecretPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomNamed',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretPromptKeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPromptSecretName',Mandatory=$false)]
     [string]$PEMFile,
     [Parameter(ParameterSetName='SPEM')]
+    [Parameter(ParameterSetName='SecretPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomNamed',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretPromptKeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPromptSecretName',Mandatory=$false)]
     [string]$ProtectedPEMFile,
     [Parameter(ParameterSetName="AZURE")]
+    [Parameter(ParameterSetName='SecretPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomPrompt',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='CustomNamed',Mandatory=$false)]
+    [Parameter(ParameterSetName='SecretPromptKeyName',Mandatory=$false)]
+    [Parameter(ParameterSetName='KeyPromptSecretName',Mandatory=$false)]
     [switch]$AzureCreatedKey,
     [switch]$NoJumpbox,
     [switch]$NoPolicy
@@ -125,6 +157,13 @@ az group create -g $resourceGroup -l $location $outputArg
 #Runs the Network Isolation File Locally or from GitHub Depending on Arguments (Still need to work on that)
 Write-Host "Deploying network isolation template to resource group $resourceGroup"
 $network_outputs = az group deployment create -g $resourceGroup --template-file "$PSScriptRoot\network_isolation\network_isolation.json" --parameters "$PSScriptRoot\network_isolation\network_isolation.parameters.json" --query "properties.outputs"
+
+if (!$network_outputs) {
+    Write-Host -ForegroundColor Red "It appears that the az cli call failed for deploying the network isolation template to return a null result. Please see the above error return from the az cli call or check your Azure portal."
+    Write-Host "Exiting Script now due to errors"
+    Return
+}
+
 $strg = ([string]$network_outputs | ConvertFrom-Json).storageAccountName.value
 $wksp = ([string]$network_outputs | ConvertFrom-Json).workspaceName.value
 
@@ -159,17 +198,39 @@ $new_params = $tempUpdate.parameters | ConvertTo-Json -Depth 20 -Compress | ForE
 #Runs the Data Isolation File Locally or from GitHub Depending on Arguments (Still need to work on that)
 Write-Host "Deploying data isolation template to resource group $resourceGroup"
 $data_outputs =  az group deployment create -g $resourceGroup --template-file "$PSScriptRoot\data_isolation\data_isolation.json" --parameters $new_params --parameters objectId="$objectID" --parameters storageAccountName="$strg" --parameters workspaceName="$wksp" --query "properties.outputs"
+
+if (!$data_outputs) {
+    Write-Host -ForegroundColor Red "It appears that the az cli call failed for deploying the data isolation template to return a null result. Please see the above error return from the az cli call or check your Azure portal."
+    Write-Host "Exiting Script now due to errors"
+    Return
+}
+
 $keyVN = ([string]$data_outputs | ConvertFrom-Json).keyVaultName.value
 
-$command = "$PSScriptRoot\data_isolation\enckey.ps1 -ResourceGroup $resourceGroup -StorageAccountName $strg -KeyvaultName $keyVN -AzureOutput $AzureOutput -AzureCreatedKey"
+# Base Command String to run the encryption key 
+$command = "$PSScriptRoot\data_isolation\enckey.ps1 -ResourceGroup $resourceGroup -StorageAccountName $strg -KeyvaultName $keyVN -AzureOutput `$$AzureOutput"
 
-<# # Build a command string with all the named parameters
+# Build a command string with all the named parameters
 if ($CustomKeyName -or $CustomKey){
     $command += " -StorageKey $strgKey" 
-} elseif () #>
+}
+
+# Block to Check what the parameters were for keys
+if ($BYOKFile -and !($AzureCreatedKey -or $PEMFile -or $ProtectedPEMFile)){
+    $command += " -BYOKFile $BYOKFile"
+} elseif ($PEMFile -and !($AzureCreatedKey -or $BYOKFile -or $ProtectedPEMFile)) {
+    $command += " -PEMFile $PEMFile"
+} elseif ($ProtectedPEMFile -and !($AzureCreatedKey -or $PEMFile -or $BYOKFile)) {
+    $command += " -ProtectedPEMFile $ProtectedPEMFile"
+} elseif ($AzureCreatedKey -and !($BYOKFile -or $PEMFile -or $ProtectedPEMFile)) {
+    $command += " -AzureCreatedKey"
+} else {
+    Write-Host -ForegroundColor Red "There appears to be an error on your parameters. Most likely you have simultaneously selected multiple ways of providing or creating the encryption key. Only one is allowed despite `"Get-Help`" saying otherwise. This is due to a limitation in the number of parameter sets allowed in Powershell that the options are not better enumerated in `"Get-Help`""
+    Return
+}
 
 Write-Host "Running enckey.ps1 script to create encryption key in Keyvault $keyVN under resource group $resourceGroup and allow storage account $strg"
-.$PSScriptRoot\data_isolation\enckey.ps1 -ResourceGroup $resourceGroup -StorageAccountName $strg -KeyvaultName $keyVN -AzureOutput $AzureOutput -AzureCreated
+Invoke-Expression $command
 
 # Get key vault ID vice just the name of the keyvault
 $keyID = az keyvault list -g $resourceGroup --query "[].id" -o tsv
@@ -184,6 +245,12 @@ if (!$NoJumpbox){
     Write-Host "Deploying compute isolation template to resource group $resourceGroup"
     $compute_outputs = az group deployment create -g $resourceGroup --template-file "$PSScriptRoot\compute_isolation\compute_isolation.json" --parameters $new_params --parameters storageAccountName=$strg --parameters platform=WinSrv --query "properties.outputs"
 
+    if (!$compute_output) {
+        Write-Host -ForegroundColor Red "It appears that the az cli call failed for deploying the compute isolation template to return a null result. Please see the above error return from the az cli call or check your Azure portal."
+        Write-Host "Exiting Script now due to errors"
+        Return
+    }
+
     #NSG to Update to handle ADE
     $nsgToUpdateforADE = ([string]$compute_outputs | ConvertFrom-Json).nsgToUpdateName.value
 
@@ -193,13 +260,23 @@ if (!$NoJumpbox){
     #Created VM Name
     $createdVMName = @(([string]$compute_outputs | ConvertFrom-Json).vmName.value)
 
-    $command = "$PSScriptRoot\data_isolation\adekey.ps1"
+    <# Modify NSG to allow VM to reach internet to grab package manager files for dm-crypt based on articles
+    https://docs.microsoft.com/en-us/azure/security/azure-security-disk-encryption-tsg
+    https://docs.microsoft.com/en-us/azure/security/azure-security-disk-encryption-linux #>
+    Write-Host "Creating a temporary rule in NSG $nsgToUpdateforADE named `"TemporaryRuleforADEPackageInstall`""
+    az network nsg rule create --resource-group $ResourceGroup --nsg-name $nsgToUpdateforADE --name "TemporaryRuleforADEPackageInstall" --priority 100 --access Allow --direction Outbound --destination-address-prefixes Internet --destination-port-ranges "*" $outputArg
 
     Write-Host "Running Azure Disk Encryption on VMs $($createdVMName -join ",") on disks $($disksToEncrypt -join ",") using Azure Keyvault $keyVN's encryption key $strgKey"
-    .$PSScriptRoot\data_isolation\adekey.ps1 -VMNames $createdVMName -ResourceGroup $resourceGroup  -NsgName $nsgToUpdateforADE -SnapshotSources $disksToEncrypt -KeyvaultName $keyVN -EncryptionKey $strgKey -AzureOutput $AzureOutput
+    $command = "$PSScriptRoot\data_isolation\adekey.ps1 -VMNames $createdVMName -ResourceGroup $resourceGroup -SnapshotSources $disksToEncrypt -KeyvaultName $keyVN -EncryptionKey $strgKey -AzureOutput `$$AzureOutput"
+    Invoke-Expression $command
+
+    # Reverse NSG rule to allow reachability to package managers
+    Write-Host "Deleting a temporary rule in NSG $nsgToUpdateforADE named `"TemporaryRuleforADEPackageInstall`""
+    az network nsg rule delete --resource-group $ResourceGroup --nsg-name $nsgToUpdateforADE --name "TemporaryRuleforADEPackageInstall" $outputArg
 }
 
 if(!$NoPolicy){
+    Write-Host "Applying Policies to resource group $ResourceGroup"
     # Apply Monitor Policy to DENY the creation of VMs outside of SKUs in .\monitor_policy\allowedvmskus.parameters.json and the creation of new VMs with Public IP resource.
     az policy definition create --name "allowed-vmskus-def" --display-name "Allowed VM SKUs Definitions" --description "This policy defines a white list of VM SKUs can only be deployed." --rules "$PSScriptRoot\monitor_policy\allowedvmskus.rules.json" --params "$PSScriptRoot\monitor_policy\allowedvmskus.parameters.json" --mode All
     az policy assignment create --name "allowed-vmskus-assign" --policy "allowed-vmskus-def" --scope "/subscriptions/$sub/resourcegroups/$resourceGroup"
