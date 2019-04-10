@@ -248,6 +248,9 @@ az login -u "$username" $outputArg
 if($sub){
     Write-Host "Setting subscription to $sub with username $username"
     az account set -s $sub $outputArg
+} else{
+    $sub = az account list --query "[].id" --output tsv | Select-Object -First 1
+    Write-Host "Operating in the subscription: $sub"
 }
 
 Write-Host "Creating Resource Group $resourceGroup in the location $location"
@@ -315,17 +318,19 @@ if ($CustomKeyName -or $CustomKey){
 }
 
 # Block to Check what the parameters were for keys
-if ($BYOKFile -and !($AzureCreatedKey -or $PEMFile -or $ProtectedPEMFile)){
-    $command += " -BYOKFile $BYOKFile"
-} elseif ($PEMFile -and !($AzureCreatedKey -or $BYOKFile -or $ProtectedPEMFile)) {
-    $command += " -PEMFile $PEMFile"
-} elseif ($ProtectedPEMFile -and !($AzureCreatedKey -or $PEMFile -or $BYOKFile)) {
-    $command += " -ProtectedPEMFile $ProtectedPEMFile"
-} elseif ($AzureCreatedKey -and !($BYOKFile -or $PEMFile -or $ProtectedPEMFile)) {
-    $command += " -AzureCreatedKey"
-} else {
-    Write-Host -ForegroundColor Red "There appears to be an error on your parameters. Most likely you have simultaneously selected multiple ways of providing or creating the encryption key. Only one is allowed despite `"Get-Help`" saying otherwise. This is due to a limitation in the number of parameter sets allowed in Powershell that the options are not better enumerated in `"Get-Help`""
-    Return
+if ($BYOKFile -or $AzureOutput -or $PEMFile -or $ProtectedPEMFile){
+    if ($BYOKFile -and !($AzureCreatedKey -or $PEMFile -or $ProtectedPEMFile)){
+        $command += " -BYOKFile $BYOKFile"
+    } elseif ($PEMFile -and !($AzureCreatedKey -or $BYOKFile -or $ProtectedPEMFile)) {
+        $command += " -PEMFile $PEMFile"
+    } elseif ($ProtectedPEMFile -and !($AzureCreatedKey -or $PEMFile -or $BYOKFile)) {
+        $command += " -ProtectedPEMFile $ProtectedPEMFile"
+    } elseif ($AzureCreatedKey -and !($BYOKFile -or $PEMFile -or $ProtectedPEMFile)) {
+        $command += " -AzureCreatedKey"
+    } else {
+        Write-Host -ForegroundColor Red "There appears to be an error on your parameters. Most likely you have simultaneously selected multiple ways of providing or creating the encryption key. Only one is allowed despite `"Get-Help`" saying otherwise. This is due to a limitation in the number of parameter sets allowed in Powershell that the options are not better enumerated in `"Get-Help`""
+        Return
+    }
 }
 
 Write-Host "Running enckey.ps1 script to create encryption key in Keyvault $keyVN under resource group $resourceGroup and allow storage account $strg"
@@ -342,9 +347,9 @@ if (!$NoJumpbox){
     $new_params = $tempUpdate.parameters | ConvertTo-Json -Depth 20 -Compress | ForEach-Object {$_ -replace '"', "'"}
 
     Write-Host "Deploying compute isolation template to resource group $resourceGroup"
-    $compute_outputs = az group deployment create -g $resourceGroup --template-file "$PSScriptRoot\compute_isolation\compute_isolation.json" --parameters $new_params --parameters storageAccountName=$strg --parameters platform=WinSrv --query "properties.outputs"
+    $compute_outputs = az group deployment create -g $resourceGroup --template-file "$PSScriptRoot\compute_isolation\compute_isolation.json" --parameters $new_params --parameters storageAccountName=$strg --parameters platform=$Platform --query "properties.outputs"
 
-    if (!$compute_output) {
+    if (!$compute_outputs) {
         Write-Host -ForegroundColor Red "It appears that the az cli call failed for deploying the compute isolation template to return a null result. Please see the above error return from the az cli call or check your Azure portal."
         Write-Host "Exiting Script now due to errors"
         Return
